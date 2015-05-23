@@ -28,6 +28,7 @@ public class PantsProjectImportBuilder extends AbstractExternalProjectImportBuil
   @NotNull
   @Override
   public String getName() {
+
     return PantsBundle.message("pants.name");
   }
 
