@@ -126,6 +126,7 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     if (StringUtil.isEmpty(contentEntryPath)) {
       return;
     }
+    
     File contentRootDir = new File(contentEntryPath);
     FileUtilRt.createDirectory(contentRootDir);
     LocalFileSystem fileSystem = LocalFileSystem.getInstance();
