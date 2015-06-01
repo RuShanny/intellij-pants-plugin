@@ -113,6 +113,11 @@
   <!--if you are changing since-build don't forget to change it in .travis.yml file as well-->
   <idea-version since-build="141.177" until-build="142.1"/>
 
+
+  <extensions defaultExtensionNs="com.intellij">
+    <moduleBuilder builderClass="com.twitter.intellij.pants.service.project.wizard.PantsModuleBuilder"/>
+  </extensions>
+
   <depends optional="true" config-file="pants-python.xml">Pythonid</depends>
   <depends optional="true" config-file="pants-python.xml">PythonCore</depends>
   <depends optional="true" config-file="pants-scala.xml">org.intellij.scala</depends>
@@ -144,6 +149,7 @@
   </extensions>
 
   <extensions defaultExtensionNs="com.intellij">
+    <!--<moduleBuilder builderClass="com.twitter.intellij.pants.service.project.wizard.PantsModuleBuilder"/>-->
     <compileServer.plugin classpath="pants-jps-plugin.jar;pants-common.jar"/>
     <compiler.buildTargetScopeProvider implementation="com.twitter.intellij.pants.compiler.PantsBuildTargetScopeProvider"/>
     <buildProcess.parametersProvider implementation="com.twitter.intellij.pants.compiler.PantsBuildProcessParametersProvider"/>
