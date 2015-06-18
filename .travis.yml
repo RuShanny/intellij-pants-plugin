@@ -1,6 +1,6 @@
 language: java
 jdk:
-  - oraclejdk7
+  - oraclejdk8
 cache:
   directories:
   - .cache/intellij/IC-$IJ_BUILD_NUMBER
@@ -14,6 +14,7 @@ install: ./scripts/setup-ci-environment.sh
 
 env:
   matrix:
+  	- IJ_ULTIMATE=false
     - IJ_ULTIMATE=true
     - USE_PANTS_TO_COMPILE=false
     - USE_ISOLATED_STRATEGY=true
