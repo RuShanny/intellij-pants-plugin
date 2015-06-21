@@ -6,6 +6,7 @@ package com.twitter.intellij.pants.util;
 import com.intellij.openapi.externalSystem.model.ProjectSystemId;
 import com.intellij.util.text.CaseInsensitiveStringHashingStrategy;
 import gnu.trove.THashSet;
+import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -32,6 +33,12 @@ public class PantsConstants {
   protected static final String PROTOBUF_EXT = "proto";
 
   public static final String PANTS_TARGET_ADDRESSES_KEY = "pants.target.addresses";
+  public static final String DEFAULT_SCRIPT_NAME = "pants" ;
+
+
+  // TODO: what extension of settings file?
+  @NotNull
+  public static final String SETTINGS_FILE_NAME  = "settings";
 
   public static Set<String> SUPPORTED_TARGET_TYPES = new THashSet<String>(
     Arrays.asList(
