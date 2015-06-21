@@ -1,99 +1,82 @@
+/*
+ * Copyright 2000-2013 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.twitter.intellij.pants.service.project.wizard;
 
 import com.intellij.ide.fileTemplates.FileTemplate;
 import com.intellij.ide.fileTemplates.FileTemplateManager;
-import com.intellij.ide.projectWizard.ProjectSettingsStep;
-import com.intellij.ide.util.EditorHelper;
 import com.intellij.ide.util.projectWizard.JavaModuleBuilder;
-import com.intellij.ide.util.projectWizard.SettingsStep;
-import com.intellij.openapi.Disposable;
-import com.intellij.openapi.application.ModalityState;
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.externalSystem.model.ExternalSystemDataKeys;
-import com.intellij.openapi.externalSystem.model.project.ProjectData;
-import com.intellij.openapi.externalSystem.model.project.ProjectId;
-import com.intellij.openapi.externalSystem.service.execution.ProgressExecutionMode;
-import com.intellij.openapi.externalSystem.settings.AbstractExternalSystemSettings;
-import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
-import com.intellij.openapi.externalSystem.util.ExternalSystemUtil;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.fileEditor.impl.LoadTextUtil;
-import com.intellij.openapi.module.Module;
-import com.intellij.openapi.options.ConfigurationException;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.project.ex.ProjectManagerEx;
-import com.intellij.openapi.roots.ModifiableRootModel;
-import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.util.Key;
-import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.vfs.VfsUtil;
-import com.intellij.openapi.vfs.VfsUtilCore;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiManager;
-import com.intellij.psi.codeStyle.CodeStyleSettingsManager;
-import com.intellij.util.containers.ContainerUtil;
-import com.twitter.intellij.pants.settings.PantsProjectSettings;
-import com.twitter.intellij.pants.util.PantsConstants;
 import com.intellij.ide.util.projectWizard.ModuleWizardStep;
 import com.intellij.ide.util.projectWizard.WizardContext;
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.externalSystem.model.ExternalSystemDataKeys;
 import com.intellij.openapi.externalSystem.service.project.wizard.AbstractExternalModuleBuilder;
 import com.intellij.openapi.externalSystem.service.project.wizard.ExternalModuleSettingsStep;
-import com.intellij.openapi.module.JavaModuleType;
-import com.intellij.openapi.module.ModuleType;
-import com.intellij.openapi.module.StdModuleTypes;
+import com.intellij.openapi.externalSystem.settings.AbstractExternalSystemSettings;
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil;
+import com.intellij.openapi.externalSystem.util.ExternalSystemConstants;
+import com.intellij.openapi.externalSystem.util.ExternalSystemUtil;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.module.*;
+import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.JavaSdkType;
 import com.intellij.openapi.projectRoots.SdkTypeId;
+import com.intellij.openapi.roots.ContentEntry;
+import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.roots.ui.configuration.ModulesProvider;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.io.FileUtilRt;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VfsUtil;
+import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
-import icons.PantsIcons;
+import com.intellij.util.containers.ContainerUtil;
+import com.twitter.intellij.pants.settings.PantsProjectSettingsControl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import com.twitter.intellij.pants.settings.PantsProjectSettingsControl;
+
+import com.twitter.intellij.pants.settings.PantsProjectSettings;
+import com.twitter.intellij.pants.util.PantsConstants;
+import icons.PantsIcons;
 
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-
 /**
- * Created by rushana on 06.05.15.
+ * @author Denis Zhdanov
+ * @since 6/26/13 11:10 AM
  */
 public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProjectSettings> {
 
+  private static final Logger LOG = Logger.getInstance(PantsModuleBuilder.class);
+
   private static final String TEMPLATE_Pants_SETTINGS = "Pants Settings.Pants";
   private static final String TEMPLATE_Pants_SETTINGS_MERGE = "Pants Settings merge.Pants";
-  private static final String TEMPLATE_Pants_BUILD_WITH_WRAPPER = "Pants Build Script with wrapper.Pants";
-  private static final String DEFAULT_TEMPLATE_Pants_BUILD = "Pants Build Script.Pants";
+  private static final String TEMPLATE_PANTS_BUILD_WITH_WRAPPER = "Pants Build Script with wrapper.Pants";
+  private static final String DEFAULT_TEMPLATE_PANTS_BUILD = "Pants Build Script.Pants";
 
   private static final String TEMPLATE_ATTRIBUTE_PROJECT_NAME = "PROJECT_NAME";
-  private static final String TEMPLATE_ATTRIBUTE_MODULE_PATH = "MODULE_PATH";
-  private static final String TEMPLATE_ATTRIBUTE_MODULE_FLAT_DIR = "MODULE_FLAT_DIR";
+  private static final String TEMPLATE_ATTRIBUTE_MODULE_DIR_NAME = "MODULE_DIR_NAME";
   private static final String TEMPLATE_ATTRIBUTE_MODULE_NAME = "MODULE_NAME";
-  private static final String TEMPLATE_ATTRIBUTE_MODULE_GROUP = "MODULE_GROUP";
-  private static final String TEMPLATE_ATTRIBUTE_MODULE_VERSION = "MODULE_VERSION";
-  private static final String TEMPLATE_ATTRIBUTE_Pants_VERSION = "Pants_VERSION";
-  private static final Key<BuildScriptDataBuilder> BUILD_SCRIPT_DATA =
-    Key.create("Pants.module.buildScriptData");
 
-  private WizardContext myWizardContext;
-
-  @Nullable
-  private ProjectData myParentProject;
-  private boolean myInheritGroupId;
-  private boolean myInheritVersion;
-  private ProjectId myProjectId;
-  private String rootProjectPath;
-
-
-  private static final Logger LOG = Logger.getInstance(PantsModuleBuilder.class);
-  public PantsModuleBuilder() {
-
-    super(PantsConstants.SYSTEM_ID, new PantsProjectSettings());
-  }
+  private @NotNull WizardContext myWizardContext;
 
   public String getBuilderId() {
 
@@ -102,7 +85,7 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
 
   @Override
   public String getPresentableName() {
-    return "Aspose";
+    return "Pants";
   }
   /*@Override
   public String getDescription() {
@@ -120,13 +103,17 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     return PantsIcons.Logo;
   }
 
+
+  public PantsModuleBuilder() {
+    super(PantsConstants.SYSTEM_ID, new PantsProjectSettings());
+  }
+
   @Override
   public void setupRootModel(final ModifiableRootModel modifiableRootModel) throws ConfigurationException {
     String contentEntryPath = getContentEntryPath();
     if (StringUtil.isEmpty(contentEntryPath)) {
       return;
     }
-    
     File contentRootDir = new File(contentEntryPath);
     FileUtilRt.createDirectory(contentRootDir);
     LocalFileSystem fileSystem = LocalFileSystem.getInstance();
@@ -144,45 +131,13 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     }
 
     final Project project = modifiableRootModel.getProject();
-    if (myParentProject != null) {
-      rootProjectPath = myParentProject.getLinkedExternalProjectPath();
-    }
-    else {
-      rootProjectPath =
-        FileUtil.toCanonicalPath(myWizardContext.isCreatingNewProject() ? project.getBasePath() : modelContentRootDir.getPath());
-    }
-    assert rootProjectPath != null;
 
-    final VirtualFile PantsBuildFile = setupPantsBuildFile(modelContentRootDir);
-    setupPantsSettingsFile(rootProjectPath, modelContentRootDir, modifiableRootModel);
+    setupPantsBuildFile(modelContentRootDir);
+    setupPantsSettingsFile(modelContentRootDir, modifiableRootModel);
 
-    if (PantsBuildFile != null) {
-      modifiableRootModel.getModule().putUserData(
-        BUILD_SCRIPT_DATA, new BuildScriptDataBuilder(PantsBuildFile));
-    }
-  }
-
-  @Override
-  protected void setupModule(Module module) throws ConfigurationException {
-    super.setupModule(module);
-    assert rootProjectPath != null;
-
-    VirtualFile buildScriptFile = null;
-    final BuildScriptDataBuilder buildScriptDataBuilder = getBuildScriptData(module);
-    try {
-      if (buildScriptDataBuilder != null) {
-        buildScriptFile = buildScriptDataBuilder.getBuildScriptFile();
-        final String text = buildScriptDataBuilder.build();
-        appendToFile(buildScriptFile, "\n" + text);
-      }
-    }
-    catch (IOException e) {
-      LOG.warn("Unexpected exception on applying frameworks templates", e);
-    }
-
-    final Project project = module.getProject();
     if (myWizardContext.isCreatingNewProject()) {
-      getExternalProjectSettings().setExternalProjectPath(rootProjectPath);
+      String externalProjectPath = FileUtil.toCanonicalPath(project.getBasePath());
+      getExternalProjectSettings().setExternalProjectPath(externalProjectPath);
       AbstractExternalSystemSettings settings = ExternalSystemApiUtil.getSettings(project, PantsConstants.SYSTEM_ID);
       project.putUserData(ExternalSystemDataKeys.NEWLY_CREATED_PROJECT, Boolean.TRUE);
       //noinspection unchecked
@@ -190,53 +145,32 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     }
     else {
       FileDocumentManager.getInstance().saveAllDocuments();
-      final PantsProjectSettings PantsProjectSettings = getExternalProjectSettings();
-      final VirtualFile finalBuildScriptFile = buildScriptFile;
-      Runnable runnable = new Runnable() {
-        public void run() {
-          if (myParentProject == null) {
-            PantsProjectSettings.setExternalProjectPath(rootProjectPath);
-            AbstractExternalSystemSettings settings = ExternalSystemApiUtil.getSettings(project, PantsConstants.SYSTEM_ID);
-            //noinspection unchecked
-            settings.linkProject(PantsProjectSettings);
-          }
-
-          ExternalSystemUtil.refreshProject(
-            project, PantsConstants.SYSTEM_ID, rootProjectPath, false,
-            ProgressExecutionMode.IN_BACKGROUND_ASYNC
-          );
-
-          final PsiFile psiFile;
-          if (finalBuildScriptFile != null) {
-            psiFile = PsiManager.getInstance(project).findFile(finalBuildScriptFile);
-            if (psiFile != null) {
-              EditorHelper.openInEditor(psiFile);
-            }
-          }
-        }
-      };
-
-      // execute when current dialog is closed
-      ExternalSystemUtil.invokeLater(project, ModalityState.NON_MODAL, runnable);
+      ExternalSystemUtil.refreshProjects(project, PantsConstants.SYSTEM_ID, false);
     }
   }
 
   @Override
   public ModuleWizardStep[] createWizardSteps(@NotNull WizardContext wizardContext, @NotNull ModulesProvider modulesProvider) {
     myWizardContext = wizardContext;
-    return new ModuleWizardStep[]{
-      new PantsModuleWizardStep(this, wizardContext),
-      new ExternalModuleSettingsStep<PantsProjectSettings>(
-        wizardContext, this, new PantsProjectSettingsControl(getExternalProjectSettings()))
-    };
+    return super.createWizardSteps(wizardContext, modulesProvider);
   }
 
   @Nullable
   @Override
   public ModuleWizardStep getCustomOptionsStep(WizardContext context, Disposable parentDisposable) {
-    final PantsFrameworksWizardStep step = new PantsFrameworksWizardStep(context, this);
-    Disposer.register(parentDisposable, step);
-    return step;
+    if (!myWizardContext.isCreatingNewProject()) return new ModuleWizardStep() {
+      @Override
+      public JComponent getComponent() {
+        return new JPanel();
+      }
+
+      @Override
+      public void updateDataModel() {
+
+      }
+    };
+    final PantsProjectSettingsControl settingsControl = new PantsProjectSettingsControl(getExternalProjectSettings());
+    return new ExternalModuleSettingsStep<PantsProjectSettings>(this, settingsControl);
   }
 
   @Override
@@ -260,61 +194,67 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
   }
 
   @Nullable
-  private VirtualFile setupPantsBuildFile(@NotNull VirtualFile modelContentRootDir)
-    throws ConfigurationException {
-    final VirtualFile file = getOrCreateExternalProjectConfigFile(modelContentRootDir.getPath(), PantsConstants.DEFAULT_SCRIPT_NAME);
+  private VirtualFile setupPantsBuildFile(@NotNull VirtualFile modelContentRootDir) throws ConfigurationException {
+    final VirtualFile file = getExternalProjectConfigFile(modelContentRootDir.getPath(), PantsConstants.DEFAULT_SCRIPT_NAME);
+    final String templateName = DEFAULT_TEMPLATE_PANTS_BUILD;
 
+    Map attributes = ContainerUtil.newHashMap();
     if (file != null) {
-      final String templateName = DEFAULT_TEMPLATE_Pants_BUILD;
-      Map<String, String> attributes = ContainerUtil.newHashMap();
-      if (myProjectId != null) {
-        attributes.put(TEMPLATE_ATTRIBUTE_MODULE_VERSION, myProjectId.getVersion());
-        attributes.put(TEMPLATE_ATTRIBUTE_MODULE_GROUP, myProjectId.getGroupId());
-        // TODO: remove this stub
-        attributes.put(TEMPLATE_ATTRIBUTE_Pants_VERSION, "1.0");
-      }
       saveFile(file, templateName, attributes);
     }
     return file;
   }
 
   @Nullable
-  private VirtualFile setupPantsSettingsFile(@NotNull String rootProjectPath,
-                                              @NotNull VirtualFile modelContentRootDir,
-                                              @NotNull ModifiableRootModel model)
+  private VirtualFile setupPantsSettingsFile(@NotNull VirtualFile modelContentRootDir, @NotNull ModifiableRootModel model)
     throws ConfigurationException {
-    final VirtualFile file = getOrCreateExternalProjectConfigFile(rootProjectPath, PantsConstants.SETTINGS_FILE_NAME);
-    if (file == null) return null;
-
-    final String moduleName = myProjectId == null ? model.getModule().getName() : myProjectId.getArtifactId();
-    if (myWizardContext.isCreatingNewProject() || myParentProject == null) {
-      final String moduleDirName = VfsUtilCore.getRelativePath(modelContentRootDir, file.getParent(), '/');
+    VirtualFile file = null;
+    if (myWizardContext.isCreatingNewProject()) {
+      final String moduleDirName = VfsUtilCore.getRelativePath(modelContentRootDir, model.getProject().getBaseDir(), '/');
+      file = getExternalProjectConfigFile(model.getProject().getBasePath(), PantsConstants.SETTINGS_FILE_NAME);
+      if (file == null) return null;
 
       Map<String, String> attributes = ContainerUtil.newHashMap();
       final String projectName = model.getProject().getName();
       attributes.put(TEMPLATE_ATTRIBUTE_PROJECT_NAME, projectName);
-      attributes.put(TEMPLATE_ATTRIBUTE_MODULE_PATH, moduleDirName);
-      attributes.put(TEMPLATE_ATTRIBUTE_MODULE_NAME, moduleName);
+      attributes.put(TEMPLATE_ATTRIBUTE_MODULE_DIR_NAME, moduleDirName);
+      attributes.put(TEMPLATE_ATTRIBUTE_MODULE_NAME, model.getModule().getName());
       saveFile(file, TEMPLATE_Pants_SETTINGS, attributes);
     }
     else {
-      char separatorChar = file.getParent() == null || !VfsUtilCore.isAncestor(file.getParent(), modelContentRootDir, true) ? '/' : ':';
-      String modulePath = VfsUtil.getPath(file, modelContentRootDir, separatorChar);
-
-      Map<String, String> attributes = ContainerUtil.newHashMap();
-      attributes.put(TEMPLATE_ATTRIBUTE_MODULE_NAME, moduleName);
-      // check for flat structure
-      final String flatStructureModulePath =
-        modulePath != null && StringUtil.startsWith(modulePath, "../") ? StringUtil.trimStart(modulePath, "../") : null;
-      if (StringUtil.equals(flatStructureModulePath, modelContentRootDir.getName())) {
-        attributes.put(TEMPLATE_ATTRIBUTE_MODULE_FLAT_DIR, "true");
-        attributes.put(TEMPLATE_ATTRIBUTE_MODULE_PATH, flatStructureModulePath);
-      }
-      else {
-        attributes.put(TEMPLATE_ATTRIBUTE_MODULE_PATH, modulePath);
+      Map<String, Module> moduleMap = ContainerUtil.newHashMap();
+      for (Module module : ModuleManager.getInstance(model.getProject()).getModules()) {
+        for (ContentEntry contentEntry : model.getContentEntries()) {
+          if (contentEntry.getFile() != null) {
+            moduleMap.put(contentEntry.getFile().getPath(), module);
+          }
+        }
       }
 
-      appendToFile(file, TEMPLATE_Pants_SETTINGS_MERGE, attributes);
+      VirtualFile virtualFile = modelContentRootDir;
+      Module module = null;
+      while (virtualFile != null && module == null) {
+        module = moduleMap.get(virtualFile.getPath());
+        virtualFile = virtualFile.getParent();
+      }
+
+      if (module != null) {
+        String rootProjectPath = module.getOptionValue(ExternalSystemConstants.ROOT_PROJECT_PATH_KEY);
+
+        if (!StringUtil.isEmpty(rootProjectPath)) {
+          VirtualFile rootProjectFile = VfsUtil.findFileByIoFile(new File(rootProjectPath), true);
+          if (rootProjectFile == null) return null;
+
+          final String moduleDirName = VfsUtilCore.getRelativePath(modelContentRootDir, rootProjectFile, '/');
+          file = getExternalProjectConfigFile(rootProjectPath, PantsConstants.SETTINGS_FILE_NAME);
+          if (file == null) return null;
+
+          Map<String, String> attributes = ContainerUtil.newHashMap();
+          attributes.put(TEMPLATE_ATTRIBUTE_MODULE_DIR_NAME, moduleDirName);
+          attributes.put(TEMPLATE_ATTRIBUTE_MODULE_NAME, model.getModule().getName());
+          appendToFile(file, TEMPLATE_Pants_SETTINGS_MERGE, attributes);
+        }
+      }
     }
     return file;
   }
@@ -324,7 +264,7 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     FileTemplateManager manager = FileTemplateManager.getDefaultInstance();
     FileTemplate template = manager.getInternalTemplate(templateName);
     try {
-      appendToFile(file, templateAttributes != null ? template.getText(templateAttributes) : template.getText());
+      VfsUtil.saveText(file, templateAttributes != null ? template.getText(templateAttributes) : template.getText());
     }
     catch (IOException e) {
       LOG.warn(String.format("Unexpected exception on applying template %s config", PantsConstants.SYSTEM_ID.getReadableName()), e);
@@ -339,7 +279,8 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
     FileTemplateManager manager = FileTemplateManager.getDefaultInstance();
     FileTemplate template = manager.getInternalTemplate(templateName);
     try {
-      appendToFile(file, templateAttributes != null ? template.getText(templateAttributes) : template.getText());
+      VfsUtil.saveText(file, VfsUtilCore.loadText(file) +
+                             (templateAttributes != null ? template.getText(templateAttributes) : template.getText()));
     }
     catch (IOException e) {
       LOG.warn(String.format("Unexpected exception on appending template %s config", PantsConstants.SYSTEM_ID.getReadableName()), e);
@@ -351,70 +292,9 @@ public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProje
 
 
   @Nullable
-  private static VirtualFile getOrCreateExternalProjectConfigFile(@NotNull String parent, @NotNull String fileName) {
+  private static VirtualFile getExternalProjectConfigFile(@NotNull String parent, @NotNull String fileName) {
     File file = new File(parent, fileName);
     FileUtilRt.createIfNotExists(file);
     return LocalFileSystem.getInstance().refreshAndFindFileByIoFile(file);
-  }
-
-  public void setParentProject(@Nullable ProjectData parentProject) {
-    myParentProject = parentProject;
-  }
-
-  public boolean isInheritGroupId() {
-    return myInheritGroupId;
-  }
-
-  public void setInheritGroupId(boolean inheritGroupId) {
-    myInheritGroupId = inheritGroupId;
-  }
-
-  public boolean isInheritVersion() {
-    return myInheritVersion;
-  }
-
-  public void setInheritVersion(boolean inheritVersion) {
-    myInheritVersion = inheritVersion;
-  }
-
-  public ProjectId getProjectId() {
-    return myProjectId;
-  }
-
-  public void setProjectId(@NotNull ProjectId projectId) {
-    myProjectId = projectId;
-  }
-
-  @Nullable
-  @Override
-  public ModuleWizardStep modifySettingsStep(@NotNull SettingsStep settingsStep) {
-    if (settingsStep instanceof ProjectSettingsStep) {
-      final ProjectSettingsStep projectSettingsStep = (ProjectSettingsStep)settingsStep;
-      if (myProjectId != null) {
-        final JTextField moduleNameField = settingsStep.getModuleNameField();
-        if (moduleNameField != null) {
-          moduleNameField.setText(myProjectId.getArtifactId());
-        }
-        projectSettingsStep.setModuleName(myProjectId.getArtifactId());
-      }
-      projectSettingsStep.bindModuleSettings();
-    }
-    return super.modifySettingsStep(settingsStep);
-  }
-
-  public static void appendToFile(@NotNull VirtualFile file, @NotNull String text) throws IOException {
-    String lineSeparator = LoadTextUtil.detectLineSeparator(file, true);
-    if (lineSeparator == null) {
-      lineSeparator = CodeStyleSettingsManager.getSettings(ProjectManagerEx.getInstanceEx().getDefaultProject()).getLineSeparator();
-    }
-    final String existingText = StringUtil.trimTrailing(VfsUtilCore.loadText(file));
-    String content = (StringUtil.isNotEmpty(existingText) ? existingText + lineSeparator : "") +
-                     StringUtil.convertLineSeparators(text, lineSeparator);
-    VfsUtil.saveText(file, content);
-  }
-
-  @Nullable
-  public static BuildScriptDataBuilder getBuildScriptData(@Nullable Module module) {
-    return module == null ? null : module.getUserData(BUILD_SCRIPT_DATA);
   }
 }
