@@ -6,6 +6,7 @@ package com.twitter.intellij.pants.util;
 import com.intellij.openapi.externalSystem.model.ProjectSystemId;
 import com.intellij.util.text.CaseInsensitiveStringHashingStrategy;
 import gnu.trove.THashSet;
+import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -34,6 +35,8 @@ public class PantsConstants {
   public static final String PANTS_COMPILER_OUTPUTS_KEY = "pants.compiler.outputs";
   public static final String PANTS_LIBRARY_EXCLUDES_KEY = "pants.library.excludes";
   public static final String PANTS_TARGET_ADDRESSES_KEY = "pants.target.addresses";
+
+  @NotNull @NonNls public static final String DEFAULT_SCRIPT_NAME = "BUILD";
 
   public static Set<String> SUPPORTED_TARGET_TYPES = new THashSet<String>(
     Arrays.asList(
