@@ -14,4 +14,6 @@ public class PantsIcons {
 
   public static final Icon Logo = load("/icons/pants_logo.png");
   public static final Icon Icon = load("/icons/pants_icon.png");
+  public static final Icon JavaIcon = load("/icons/java_logo.png");
+  public static final Icon ScalaIcon = load("/icons/scala_logo.png");
 }
