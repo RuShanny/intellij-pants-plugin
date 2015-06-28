@@ -18,8 +18,8 @@ import com.twitter.intellij.pants.util.PantsConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class PantsModuleBuilder extends AbstractExternalModuleBuilder<PantsProjectSettings> {
-  public PantsModuleBuilder() {
+public class PantsJavaModuleBuilder extends AbstractExternalModuleBuilder<PantsProjectSettings> {
+  public PantsJavaModuleBuilder() {
     super(PantsConstants.SYSTEM_ID, new PantsProjectSettings());
   }
 
